@@ -1,0 +1,73 @@
+pipeline {
+    agent any
+    stages {
+        stage('Cleanup Previous Run') {
+            steps {
+                sh '''
+                    > /var/lib/jenkins/workspace/DEPLOYMENTS/service_output.txt
+                    echo "${DEPLOYMENT}"
+                    echo "${ENVIRONMENT}"
+                '''
+            }
+        }
+        
+        stage('Service list') {
+            steps {
+                sh 'python3 /var/lib/jenkins/workspace/DEPLOYMENTS/service_list.py > /var/lib/jenkins/workspace/DEPLOYMENTS/service_output.txt'
+            }
+        }
+        
+        stage('Service list Output') {
+            steps {
+                script {
+                    env.SERVICE_LIST = readFile('/var/lib/jenkins/workspace/DEPLOYMENTS/service_output.txt').trim().split('\n').join('\n')
+                }
+            }
+        }
+        
+        stage('Run pipeline with Parameters') {
+            steps {
+                script {
+                    // initialize parameter values
+                    def service = ''
+                    def addVar = ''
+                    def delVar = ''
+                    def exitLoop = 'no'
+                    def paramsList = []
+                    // create loop
+                    while (exitLoop == 'no') {
+                        // prompt user to select service and enter values for addVar, delVar, and exitLoop
+                        def userInput = input message: 'Enter values:', parameters: [
+                            choice(name: 'service', choices: env.SERVICE_LIST.split('\n').toList()),
+                            string(name: 'addVar', defaultValue: addVar, description: 'Enter addVar value'),
+                            string(name: 'delVar', defaultValue: delVar, description: 'Enter delVar value'),
+                            choice(name: 'exitLoop', choices: ['yes', 'no'], description: 'Select exit option:')
+                        ]
+                        // set values of parameters based on user input
+                        service = userInput['service']
+                        addVar = userInput['addVar']
+                        delVar = userInput['delVar']
+                        exitLoop = userInput['exitLoop']
+                        // add parameter values to list
+                        paramsList.add([service, addVar, delVar, exitLoop])
+                        
+                        // print out user's input for this iteration
+                        echo "service: ${service}, addVar: ${addVar}, delVar: ${delVar}"
+                        
+                        // take service name and give respective image associated with the service latest task definition
+                        sh 'echo "Image stage"'
+                        
+                        // set parameter values to empty for next iteration
+                        service = ''
+                        addVar = ''
+                        delVar = ''
+                        
+                    }
+                    // write parameter values to text file
+                    def paramsText = paramsList.collect { "Service: ${it[0]}, addVar: ${it[1]}, delVar: ${it[2]}" }.join('\n')
+                    writeFile file: '/var/lib/jenkins/workspace/DEPLOYMENTS/Release.txt', text: paramsText, append: true
+                }
+            }
+        }
+    }
+}
