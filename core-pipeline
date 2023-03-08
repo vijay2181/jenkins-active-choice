@@ -1,0 +1,56 @@
+ACTIVE CHOICE PARAMETER
+DEPLOYMENT:-
+------------
+def command = "python3 /var/lib/jenkins/workspace/DEPLOYMENTS/Choice_choice1.py"
+def process = command.execute()
+def reader = new BufferedReader(new InputStreamReader(process.getInputStream()))
+def output = []
+String line
+while ((line = reader.readLine()) != null) {
+    output.add(line)
+}
+process.waitFor()
+return output
+
+
+ENVIRONMENT:-
+-------------
+def command = "python3 /var/lib/jenkins/workspace/DEPLOYMENTS/Choice_choice2.py"
+def process = command.execute()
+def reader = new BufferedReader(new InputStreamReader(process.getInputStream()))
+def output = []
+String line
+while ((line = reader.readLine()) != null) {
+    output.add(line)
+}
+process.waitFor()
+return output
+
+
+PIPELINE:-
+===========
+
+node  {
+        stage('Main_Trigger_Job') {
+            
+			   script{
+			     if ("${params.ENVIRONMENT}" == 'Choose Environment') {
+					println('Choose any Environment from the List')
+					System.exit(1)
+				}
+			     
+				 else if ("${params.DEPLOYMENT}" == 'Release') {
+					build job: 'Release', parameters: [string(name: 'DEPLOYMENT', value: "${params.DEPLOYMENT}"), string(name: 'ENVIRONMENT', value: "${params.ENVIRONMENT}")]
+				}
+				else if ("${params.DEPLOYMENT}"== 'Refresh') {
+                    build job: 'Refresh', parameters: [string(name: 'DEPLOYMENT', value: "${params.DEPLOYMENT}"), string(name: 'ENVIRONMENT', value: "${params.ENVIRONMENT}")]
+                }
+                else if ("${params.DEPLOYMENT}"== 'Patch') {
+                    build job: 'Patch', parameters: [string(name: 'DEPLOYMENT', value: "${params.DEPLOYMENT}"), string(name: 'ENVIRONMENT', value: "${params.ENVIRONMENT}")]
+                }
+                else {
+					sh "echo 'Please Enter a Correct choice'" 
+				}
+			   }
+        }
+    }
